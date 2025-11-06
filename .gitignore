@@ -1,0 +1,35 @@
+# --- Python / FastAPI ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+.venv/
+.env
+.env.*
+
+# --- Models ---
+app/models/
+models/
+*.safetensors
+*.pt
+*.bin
+*.ckpt
+
+# --- Frontend ---
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+npm-debug.log
+yarn-error.log
+
+# --- OS / IDE ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# --- Logs ---
+*.log
+logs/
