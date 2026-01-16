@@ -4,6 +4,7 @@ from typing import Optional
 class JournalEntryIn(BaseModel):
     user_id: str
     text: str
+    embedding: Optional[list[float]] = None
 
 class ResponseOut(BaseModel):
     reply: str

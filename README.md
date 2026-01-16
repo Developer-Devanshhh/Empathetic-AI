@@ -1,231 +1,167 @@
-# Empathetic AI — Journaling Assistant
+# NeuroLog — Empathetic AI Companion
 
-A local-first, privacy-minded journaling assistant that analyzes emotion from text, stores journal entries, and returns contextual, empathetic reflections (via Google Gemini).\
-Back-end: **FastAPI** (emotion model inference, Chroma storage, Gemini integration).\
-Front-end: **React + Vite + Tailwind** (empathetic journal UI, login, history).
+> **A privacy-first, multi-agent journaling assistant that listens, remembers, and responds with empathy.**
 
----
-
-## Quick status (what this repo includes)
-
-- `app/` — FastAPI backend (routes: `/health`, `/analyze_emotion`, `/journal`, `/register`, `/login`)
-- `app/utils/` — emotion model loader (`emotion_infer.py`), Chroma helpers, Gemini client, auth utils
-- `frontend/` — React + Vite app with `EmpatheticJournal` component and simple Login/Register UI
-- `.gitignore` — excludes venv, models, node\_modules, and secrets
-
-> **Important:** Model files, virtualenvs, and `.env` are intentionally **excluded** from the repo.\
-> Do **not** commit your API keys or model weights.
+![License](https://img.shields.io/badge/license-MIT-blue.svg) ![Status](https://img.shields.io/badge/status-active-success.svg) ![Stack](https://img.shields.io/badge/stack-FastAPI%20%7C%20React%20%7C%20Gemini-orange)
 
 ---
 
-## Table of contents
+## 📖 Overview
+NeuroLog is an advanced mental wellness prototype designed to provide a safe, private space for emotional reflection. Unlike standard chatbots, it uses **long-term memory**, **psychological models** (CBT-based pattern recognition), and **encrypted storage** to build genuine rapport without compromising user privacy.
 
-- [Prerequisites](#prerequisites)
-- [Quickstart — Run locally (recommended)](#quickstart)
-  - Backend (FastAPI)
-  - Frontend (React + Vite)
-- [Environment variables](#environment-variables)
-- [Model files](#model-files)
-- [API endpoints (quick)](#api-endpoints-quick)
-- [Testing the stack manually (curl examples)](#curl-examples)
-- [Troubleshooting & tips](#troubleshooting--tips)
-- [Development workflow & Git notes](#development-workflow--git-notes)
-- [Next steps / roadmap](#next-steps--roadmap)
-- [License & acknowledgements](#license--acknowledgements)
+The system features a **Multi-Agent Companion Room** where users can interact with distinct, non-judgmental personas (Listener, Planner, Reflector), orchestrated in parallel to provide diverse perspectives on their thoughts.
 
 ---
 
-## Prerequisites
+## 🌟 Key Features & Technical Depth
 
-- Python 3.11+ strongly recommended (3.10 works but some Google libs warn about EOL).
-- Node.js 18+ and npm/yarn.
-- Git (for source control).
-- (Optional) `git-lfs` if you decide to store model weights in the repo (generally not recommended).
+### 🛡️ Privacy & Trust (Phase 1)
+We treat user thoughts as sensitive medical data.
+- **Client-Side Embeddings**: 
+  - Using `@xenova/transformers` (all-MiniLM-L6-v2), vector embeddings are generated **in the browser**. 
+  - *Benefit*: The backend receives pre-computed vectors, reducing the need to process raw text on the server for indexing.
+- **Encryption at Rest**: 
+  - All journal entries are encrypted using **AES-GCM (Fernet)** before being persisted to ChromaDB.
+  - *Benefit*: Even if the database file is exfiltrated, the content is mathematically unreadable without the key.
+- **Privacy Dashboard**: 
+  - A transparency hub where users can see exactly what memories are stored and perform **granular deletion** or a **full wipe**.
+
+### 🎭 Multi-Agent Companion Room (Phase 2)
+A unified interface (`AgentRoom.jsx`) where users communicate with multiple AI personas simultaneously.
+- **Orchestrator Service**: 
+  - A backend service (`orchestrator.py`) that manages the chat flow.
+  - **Parallel Execution**: Uses `asyncio.gather` to query multiple Gemini instances concurrently, ensuring sub-2s latency.
+  - **Memory Scoping**: Each agent has strict access boundaries defined in JSON.
+    - *The Listener* sees your emotional history.
+    - *The Planner* only sees the current session (to remain objective).
+- **Room Memory Policy**: 
+  - **User Messages**: Stored (Encrypted).
+  - **Agent Replies**: **Ephemeral**. They are never stored to prevent database pollution and AI feedback loops.
+
+### 🧠 Core Intelligence (Phase 0/0.5)
+- **Mood Volatility Detection**: 
+  - Calculates the cosine distance between the current entry's vector and the moving average of the last 5 entries.
+  - *Trigger*: If volatility score > 0.3, the system tags the entry as a "Mood Swing".
+- **Cognitive Distortion Analysis**: 
+  - Analyzes text for common CBT distortions (e.g., "Catastrophizing", "All-or-Nothing Thinking") and prompts the reflection agent to gently challenge them.
+- **Memory Decay Algorithm**: 
+  - Retrieval isn't just semantic. It weights memories by: `Relevance * (1 / (TimeDays + 1)) * EmotionalIntensity`.
+- **Safety Circuit Breaker**: 
+  - **Pre-Computation Check**: Regex patterns scan for self-harm/crisis keywords on the *raw input*.
+  - *Action*: Immediate block. No AI inference. Returns a hardcoded crisis resource message (988).
 
 ---
 
-## Quickstart
+## 🚀 Quick Start Guide
 
-### Backend (FastAPI)
+### Prerequisites
+- **Python 3.10+**
+- **Node.js 18+**
+- **Google Gemini API Key** ([Get one here](https://aistudio.google.com/))
 
-1. Create and activate a virtual environment:
-
-**Windows (PowerShell)**
-
-```powershell
-python -m venv venv
-.\venv\Scripts\Activate
-```
-
-**macOS / Linux**
-
+### 1. Backend Setup (FastAPI)
 ```bash
+# Clone the repository
+git clone https://github.com/your-username/neurolog.git
+cd neurolog
+
+# Create Virtual Environment
 python -m venv venv
-source venv/bin/activate
-```
+.\venv\Scripts\activate   # Windows PowerShell
+# source venv/bin/activate # Mac/Linux
 
-2. Install backend dependencies:
-
-```bash
+# Install Python Dependencies
 pip install -r requirements.txt
+
+# Configure Environment
+# We need a secure key for encryption. Run this one-liner to generate one:
+python -c "from cryptography.fernet import Fernet; print(f'ENCRYPTION_KEY={Fernet.generate_key().decode()}')" > .env
+# Add your Gemini Key
+echo "GEMINI_API_KEY=your_actual_key_here" >> .env
+
+# Run the Server
+python -m uvicorn app.main:app --reload --port 8000
 ```
+*The backend documentation will be available at http://127.0.0.1:8000/docs*
 
-3. Add environment variables (see section below).
-
-4. Run the backend:
-
-```bash
-uvicorn app.main:app --reload --port 8000
-```
-
-Open: `http://127.0.0.1:8000/docs` to see FastAPI Swagger UI.
-
----
-
-### Frontend (React + Vite)
-
-1. From project root:
-
+### 2. Frontend Setup (React + Vite)
 ```bash
 cd frontend
+
+# Install Node Dependencies
 npm install
-```
 
-2. Create `.env` in `frontend/` (see section below), then start:
+# Configure API Connection
+echo "VITE_API_URL=http://localhost:8000" > .env
 
-```bash
+# Start Development Server
 npm run dev
 ```
-
-Open browser: `http://localhost:5173`
-
----
-
-## Environment variables
-
-Create a top-level `.env` (DO NOT commit this file):
-
-```
-# root/.env
-GEMINI_API_KEY=your_google_gemini_api_key_here
-EMOTION_MODEL_PATH=path/to/your/local/emotion_model  # optional if default location used
-```
-
-Create `frontend/.env`:
-
-```
-VITE_API_URL=http://127.0.0.1:8000
-```
-
-> Note: `main.py` loads `.env` on startup — make sure it exists before running the server.
+*Access the app at http://localhost:5173*
 
 ---
 
-## Model files
+## 🛠️ Architecture Overview
 
-- **Do not** commit model files (`*.safetensors`, `*.pt`, etc.). Keep them locally in `app/models/emotion_model/` or store them in cloud storage and update `EMOTION_MODEL_PATH`.
-- If you *must* version models, use **Git LFS**. Preferably: keep models outside the repository and only include instructions for obtaining them.
-
----
-
-## API endpoints (quick)
-
-- `GET /health` — health check
-- `POST /analyze_emotion` — body `{ "text": "..." }` → returns `{ emotion, confidence, message }`
-- `POST /register` — body `{ "username","password" }` → register user
-- `POST /login` — body `{ "username","password" }` → returns `access_token`
-- `POST /journal` — Auth required (Bearer token). Body `{ "user_id","text" }` or (if backend pulls user from JWT) `{ "text" }` → returns `{ reply, emotion, mood_swing }`
+| Component | Technology | Responsibility |
+|-----------|------------|----------------|
+| **Frontend** | React, Tailwind, Framer Motion | User Interface, Client-Side Vectors (`embeddings.js`) |
+| **Backend API** | FastAPI, Uvicorn | REST Endpoints, Auth (`OAuth2`), Orchestration |
+| **Logic Layer** | Python (`orchestrator.py`) | Safety Checks, Agent parellelization, Memory filtering |
+| **Storage** | ChromaDB (Local) | Vector Search, Encrypted Document Store |
+| **AI Model** | Google Gemini Flash | Text Generation, Empathetic Reflection |
+| **Security** | Cryptography (Fernet) | AES-GCM Encryption/Decryption |
 
 ---
 
-## Curl examples
-
-Analyze emotion:
-
-```bash
-curl -X POST "http://127.0.0.1:8000/analyze_emotion" \
- -H "Content-Type: application/json" \
- -d '{"text":"I feel happy today"}'
+## 📂 Project Structure
 ```
-
-Register & login:
-
-```bash
-curl -X POST "http://127.0.0.1:8000/register" -H "Content-Type: application/json" -d '{"username":"alice","password":"pass"}'
-curl -X POST "http://127.0.0.1:8000/login" -H "Content-Type: application/json" -d '{"username":"alice","password":"pass"}'
-# copy access_token from response
-```
-
-Submit a journal (authenticated):
-
-```bash
-curl -X POST "http://127.0.0.1:8000/journal" \
- -H "Content-Type: application/json" \
- -H "Authorization: Bearer <ACCESS_TOKEN>" \
- -d '{"user_id":"alice","text":"I felt stressed but better after a walk."}'
+NeuroLog/
+├── app/
+│   ├── main.py              # Application Entry Point
+│   ├── orchestrator.py      # Multi-Agent Logic Manager
+│   ├── mediator.py          # Optional Synthesis Service
+│   ├── utils/
+│   │   ├── security.py      # Encryption Logic
+│   │   ├── safety.py        # Crisis Detection Regex
+│   │   ├── embeddings.py    # Server-side fallback & Model
+│   │   └── chroma_client.py # DB Interface (Encrypts on write)
+│   └── models/              # Pydantic Schemas
+├── agent_configs/
+│   └── default_personas.json # Agent definitions (Prompts, Access Scopes)
+└── frontend/
+    ├── src/
+    │   ├── components/
+    │   │   ├── AgentRoom.jsx       # Multi-Agent UI
+    │   │   ├── EmpatheticJournal.jsx # Classic Journal UI
+    │   │   └── PrivacyDashboard.jsx  # Data Management UI
+    │   └── utils/
+    │       └── embeddings.js       # Client-side Vector Generation
 ```
 
 ---
 
-## Troubleshooting & tips
-
-- **500 Internal Server Error** for `/analyze_emotion` — check backend logs; likely model load issues or predict\_emotion exceptions. Add `print()` debug lines or check the model path in `EMOTION_MODEL_PATH`.
-- **Gemini no reply / errors** — ensure `GEMINI_API_KEY` is present and `load_dotenv()` is called before importing the Gemini client. Check available model names if you get `NotFound` errors.
-- **CORS issues** — confirm `CorsMiddleware` is configured in `main.py` (`allow_origins=["*"]` for dev).
-- **GitHub push failing due to large files** — ensure `.gitignore` excludes `venv`, `app/models`, and `frontend/node_modules`. Use `git rm --cached ...` to untrack files accidentally added.
-- **Frontend can't find imports like ****@/...** — use relative imports or set up Vite aliases.
+## 🔒 Comprehensive Security Policy
+1.  **Zero-Knowledge-ish**: While the server holds the key in this MVP (`.env`), the database file itself is unintelligible on disk.
+2.  **Access Control**: Agents are sandboxed. The "Planner" agent physically cannot access your emotional history logs.
+3.  **Ephemeral Responses**: The AI's words in the Companion Room disappear after the session. We do not train on your data or store AI generation to keep the long-term memory pure (User-only).
+4.  **Right to Vanish**: The `DELETE /memories` endpoint physically removes the vector and metadata from ChromaDB.
 
 ---
 
-## Development workflow & Git notes
+## 🤝 Contributing
+We welcome contributions, especially in:
+- **New Personas**: Create JSON profiles in `agent_configs/`.
+- **UI Themes**: Accessible themes for users with visual sensitivities.
+- **Local LLM Support**: Adapting `manifest` to support Ollama/LlamaCPP.
 
-Recommended branch workflow:
-
-- `main` — production-ready
-- `feature/*` — for features (e.g., `feature/auth-ui`)
-- Create PRs and merge to `main`.
-
-Before pushing:
-
-```bash
-git status
-git add -A
-git commit -m "Meaningful message"
-git push
-```
-
-If you accidentally committed secrets, rotate keys immediately. To remove secrets from history, use `git filter-repo` or re-create the repo (clean start).
+1. Fork the repo.
+2. Create feature branch (`git checkout -b feature/amazing-feature`).
+3. Commit changes (`git commit -m 'Add amazing feature'`).
+4. Push to branch (`git push origin feature/amazing-feature`).
+5. Open a Pull Request.
 
 ---
 
-## Next steps / roadmap (ideas)
-
-- Emotion-aware context retrieval (only bring entries with similar labels)
-- Per-user timeline view in the UI (history with filters)
-- Optional model hosting (S3/GCS) and dynamic model loading
-- Production deployment: FastAPI → Render/Heroku/Fly; Frontend → Vercel/Netlify. Use GitHub Actions for CI.
-
----
-
-## License & acknowledgements
-
-This project is provided as-is for learning and prototyping. Add a license file if you want to publish this repository (MIT is flexible and permissive).
-
-Third-party tools and libraries used:
-
-- FastAPI, Uvicorn
-- Transformers / PyTorch
-- Google Generative AI (Gemini) SDK
-- Recharts, Framer Motion, Tailwind CSS for the frontend
-- Chroma (for vector storage)
-
----
-
-## Contact / Help
-
-If you need setup help, debugging tips, or automated deployment scripts, open an issue in the repo or reach out via your preferred channel.
-
----
-
-Happy building — this project already does the heart of what matters: listens, remembers, and responds with empathy. Keep iterating. 🌱
-
+## 📜 License
+MIT License. Built with ❤️ for mental wellness.

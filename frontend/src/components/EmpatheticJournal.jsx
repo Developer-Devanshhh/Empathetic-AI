@@ -27,6 +27,8 @@ const Textarea = ({ ...props }) => (
 );
 
 
+import { generateEmbedding } from '../utils/embeddings';
+
 // NEW (after authentication)
 export default function EmpatheticJournal({ token }) {
   const [entry, setEntry] = useState('');
@@ -38,7 +40,7 @@ export default function EmpatheticJournal({ token }) {
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   // Fallback mock analyzer (if backend not reachable)
-  
+
   const mockAnalyze = (text) => {
     const lower = text.toLowerCase();
     if (lower.includes('happy') || lower.includes('joy'))
@@ -74,46 +76,57 @@ export default function EmpatheticJournal({ token }) {
     setLoading(false);
   };
   // Submit journal entry to backend
-const handleSubmitJournal = async () => {
-  if (!entry.trim()) return;
-  setLoading(true);
-  try {
-    const response = await fetch(`${API_BASE}/journal`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-  user_id: localStorage.getItem("username"),
-  text: entry,
-}),
+  const handleSubmitJournal = async () => {
+    if (!entry.trim()) return;
+    setLoading(true);
+    try {
+      // Generate embedding on client
+      let embedding = null;
+      try {
+        embedding = await generateEmbedding(entry);
+        console.log("Generated client-side embedding:", embedding.length);
+      } catch (err) {
+        console.error("Embedding generation failed, falling back to server:", err);
+      }
 
-    });
+      const response = await fetch(`${API_BASE}/journal`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          user_id: localStorage.getItem("username"),
+          text: entry,
+          embedding: embedding // Send vector if generated
+        }),
+      });
 
-    if (!response.ok) throw new Error("Failed to submit journal");
-    const data = await response.json();
-    setHistory((prev) => [
-      ...prev,
-      {
-        text: entry,
+
+
+      if (!response.ok) throw new Error("Failed to submit journal");
+      const data = await response.json();
+      setHistory((prev) => [
+        ...prev,
+        {
+          text: entry,
+          emotion: data.emotion,
+          confidence: 1,
+          reply: data.reply,
+          date: new Date().toLocaleString(),
+        },
+      ]);
+      setEmotion({
         emotion: data.emotion,
         confidence: 1,
-        reply: data.reply,
-        date: new Date().toLocaleString(),
-      },
-    ]);
-    setEmotion({
-      emotion: data.emotion,
-      confidence: 1,
-      message: data.reply,
-    });
-  } catch (error) {
-    console.error("Error submitting journal:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+        message: data.reply,
+      });
+    } catch (error) {
+      console.error("Error submitting journal:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
 
@@ -151,12 +164,12 @@ const handleSubmitJournal = async () => {
               {loading ? 'Analyzing...' : 'Analyze Emotion'}
             </Button>
             <Button
-  onClick={handleSubmitJournal}
-  disabled={loading || !entry.trim()}
-  className="ml-2 bg-green-500 hover:bg-green-600 "
->
-  {loading ? "Saving..." : "Save & Reflect"}
-</Button>
+              onClick={handleSubmitJournal}
+              disabled={loading || !entry.trim()}
+              className="ml-2 bg-green-500 hover:bg-green-600 "
+            >
+              {loading ? "Saving..." : "Save & Reflect"}
+            </Button>
 
           </div>
         </CardContent>

@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    container_name: neurolog-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - CHROMA_PERSIST_DIR=/chroma_store
+    volumes:
+      - ./chroma_store:/chroma_store
+      # Mount models if local
+      # - ./models:/models
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: neurolog-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=http://localhost:8000 
+      # Note: For browser-side React, localhost:8000 works because the browser accesses it.
+      # If SSR, we'd need internal DNS.

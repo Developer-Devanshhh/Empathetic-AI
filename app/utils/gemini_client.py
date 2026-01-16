@@ -7,8 +7,19 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 # ✅ Use a stable model name
 MODEL_NAME = "models/gemini-2.5-flash-preview-05-20"
 
-def generate_empathetic_reply(emotion: str, context: str, user_entry: str) -> str:
+def generate_empathetic_reply(emotion: str, context: str, user_entry: str, distortions: list = None) -> str:
     """Generate a warm, empathetic reflection using Gemini."""
+    
+    distortion_instruction = ""
+    if distortions:
+        distortion_list = ", ".join(distortions)
+        distortion_instruction = f"""
+        OBSERVATION: The user's entry contains these thinking patterns: {distortion_list}.
+        INSTRUCTION: Gently invite alternative perspectives using reflective questions. 
+        IMPORTANT: Do NOT name or label the distortion explicitly (e.g. do not say "You are catastrophizing"). 
+        Instead, ask open questions like "What evidence do you have for that?" or "Is there another way to see this?"
+        """
+
     prompt = f"""
     You are an empathetic journaling companion.
     The user's emotional tone is: {emotion}
@@ -18,6 +29,8 @@ def generate_empathetic_reply(emotion: str, context: str, user_entry: str) -> st
 
     --- New journal entry ---
     {user_entry}
+    
+    {distortion_instruction}
 
     Write a supportive reflection that validates the user's feelings,
     encourages gentle introspection, and uses an understanding, positive tone.
