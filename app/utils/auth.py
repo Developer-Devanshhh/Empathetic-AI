@@ -1,9 +1,12 @@
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 
+from fastapi.security import OAuth2PasswordBearer
+
 SECRET_KEY = "supersecretkey"  # ⚠️ in production, load from .env
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 # In-memory user store
 users_db = {}

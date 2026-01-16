@@ -3,7 +3,7 @@ import google.generativeai as genai
 
 # Reuse existing config
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-MODEL_NAME = "models/gemini-2.5-flash-preview-05-20"
+MODEL_NAME = "models/gemini-2.5-flash"
 
 async def summarize_room(conversation_history: list) -> str:
     """

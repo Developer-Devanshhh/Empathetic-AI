@@ -1,33 +1,31 @@
-import os
 from cryptography.fernet import Fernet
-from dotenv import load_dotenv
+import os
 
-load_dotenv()
+# In a real app, this should be in .env. For MVP, we generate/load from a file.
+KEY_FILE = "secret.key"
 
-# Generate a default key if none exists (for dev convenience only)
-# In prod, this must come from env and be persistent.
-_env_key = os.getenv("ENCRYPTION_KEY")
-if not _env_key:
-    # Generate a throwaway key for dev session if missing, but printing warning
-    print("[WARNING] ENCRYPTION_KEY not found in .env. Using ephemeral key (DATA WILL BE LOST ON RESTART).")
-    _key = Fernet.generate_key()
-else:
-    _key = _env_key.encode() if isinstance(_env_key, str) else _env_key
+def load_key():
+    if not os.path.exists(KEY_FILE):
+        key = Fernet.generate_key()
+        with open(KEY_FILE, "wb") as key_file:
+            key_file.write(key)
+    else:
+        with open(KEY_FILE, "rb") as key_file:
+            key = key_file.read()
+    return key
 
-cipher_suite = Fernet(_key)
+key = load_key()
+cipher_suite = Fernet(key)
 
 def encrypt_text(text: str) -> str:
-    """Encrypts a string using Fernet (AES-128-CBC + HMAC)."""
-    if not text: 
+    if not text:
         return ""
     return cipher_suite.encrypt(text.encode()).decode()
 
-def decrypt_text(text: str) -> str:
-    """Decrypts a string using Fernet."""
-    if not text: 
+def decrypt_text(encrypted_text: str) -> str:
+    if not encrypted_text:
         return ""
     try:
-        return cipher_suite.decrypt(text.encode()).decode()
-    except Exception as e:
-        print(f"[ERROR] Decryption failed: {e}")
-        return "[ENCRYPTED_DATA_ERROR]"
+        return cipher_suite.decrypt(encrypted_text.encode()).decode()
+    except Exception:
+        return "[Decryption Failed]"

@@ -15,18 +15,20 @@ The system features a **Multi-Agent Companion Room** where users can interact wi
 
 ## 🌟 Key Features & Technical Depth
 
-### 🛡️ Privacy & Trust (Phase 1)
+### �️ Privacy & Trust (Phase 1)
 We treat user thoughts as sensitive medical data.
 - **Client-Side Embeddings**: 
   - Using `@xenova/transformers` (all-MiniLM-L6-v2), vector embeddings are generated **in the browser**. 
   - *Benefit*: The backend receives pre-computed vectors, reducing the need to process raw text on the server for indexing.
 - **Encryption at Rest**: 
-  - All journal entries are encrypted using **AES-GCM (Fernet)** before being persisted to ChromaDB.
+  - All journal entries are encrypted using **AES-GCM (Fernet)** and stored in **SQLite** (structured) and **ChromaDB** (vectors).
   - *Benefit*: Even if the database file is exfiltrated, the content is mathematically unreadable without the key.
-- **Privacy Dashboard**: 
+- **Privacy Dashboard** (In Progress): 
   - A transparency hub where users can see exactly what memories are stored and perform **granular deletion** or a **full wipe**.
+- **Client-Only Mode**:
+  - A toggle to keep specific entries strictly local or encrypted without any AI functioning.
 
-### 🎭 Multi-Agent Companion Room (Phase 2)
+### 🎭 Multi-Agent Companion Room (Phase 2 & 2.5)
 A unified interface (`AgentRoom.jsx`) where users communicate with multiple AI personas simultaneously.
 - **Orchestrator Service**: 
   - A backend service (`orchestrator.py`) that manages the chat flow.
@@ -37,6 +39,15 @@ A unified interface (`AgentRoom.jsx`) where users communicate with multiple AI p
 - **Room Memory Policy**: 
   - **User Messages**: Stored (Encrypted).
   - **Agent Replies**: **Ephemeral**. They are never stored to prevent database pollution and AI feedback loops.
+
+### � Structured Journaling (New in Sprint 1)
+- **Hierarchical Organization**:
+  - **Books** (e.g., "Personal", "Work") -> **Chapters** (e.g., "January 2026") -> **Entries**.
+  - **SQLAlchemy ORM**: Robust relational data storage replacing the previous flat-file system.
+- **Premium UI/UX**:
+  - **Dark Mode**: Fully implemented system-wide dark theme (Sprint 2.5).
+  - **Sidebar Navigation**: Efficiently switch between journals and chapters.
+  - **Rich Editor**: Autosaves content and manages entry history.
 
 ### 🧠 Core Intelligence (Phase 0/0.5)
 - **Mood Volatility Detection**: 
@@ -78,6 +89,8 @@ pip install -r requirements.txt
 python -c "from cryptography.fernet import Fernet; print(f'ENCRYPTION_KEY={Fernet.generate_key().decode()}')" > .env
 # Add your Gemini Key
 echo "GEMINI_API_KEY=your_actual_key_here" >> .env
+# Add Database URL
+echo "DATABASE_URL=sqlite:///./journal.db" >> .env
 
 # Run the Server
 python -m uvicorn app.main:app --reload --port 8000
@@ -108,9 +121,10 @@ npm run dev
 | **Frontend** | React, Tailwind, Framer Motion | User Interface, Client-Side Vectors (`embeddings.js`) |
 | **Backend API** | FastAPI, Uvicorn | REST Endpoints, Auth (`OAuth2`), Orchestration |
 | **Logic Layer** | Python (`orchestrator.py`) | Safety Checks, Agent parellelization, Memory filtering |
-| **Storage** | ChromaDB (Local) | Vector Search, Encrypted Document Store |
+| **Data Layer** | **SQLAlchemy** (New) | Relational Data (Books, Chapters, Entries) |
+| **Vector Store** | ChromaDB (Local) | Vector Search, Encrypted Document Store |
 | **AI Model** | Google Gemini Flash | Text Generation, Empathetic Reflection |
-| **Security** | Cryptography (Fernet) | AES-GCM Encryption/Decryption |
+| **Security** | Cryptography (Fernet) | AES-GCM Encrypted Storage |
 
 ---
 
@@ -120,23 +134,26 @@ NeuroLog/
 ├── app/
 │   ├── main.py              # Application Entry Point
 │   ├── orchestrator.py      # Multi-Agent Logic Manager
-│   ├── mediator.py          # Optional Synthesis Service
-│   ├── utils/
-│   │   ├── security.py      # Encryption Logic
-│   │   ├── safety.py        # Crisis Detection Regex
-│   │   ├── embeddings.py    # Server-side fallback & Model
-│   │   └── chroma_client.py # DB Interface (Encrypts on write)
-│   └── models/              # Pydantic Schemas
+│   ├── database.py          # SQLAlchemy Database Setup 🆕
+│   ├── models/              
+│   │   └── sql.py           # SQL Data Models (Book, Chapter, Entry) 🆕
+│   ├── routers/
+│   │   ├── journal.py       # Journaling Endpoints 🆕
+│   │   └── companion.py     # Room Endpoints 🆕
+│   └── utils/
+│       ├── security.py      # Encryption Logic
+│       └── safety.py        # Crisis Detection Regex
 ├── agent_configs/
 │   └── default_personas.json # Agent definitions (Prompts, Access Scopes)
 └── frontend/
     ├── src/
     │   ├── components/
     │   │   ├── AgentRoom.jsx       # Multi-Agent UI
-    │   │   ├── EmpatheticJournal.jsx # Classic Journal UI
-    │   │   └── PrivacyDashboard.jsx  # Data Management UI
+    │   │   ├── BookSelector.jsx    # Journal Navigation 🆕
+    │   │   ├── Editor.jsx          # Rich Text Editor 🆕
+    │   │   └── PrivacyDashboard.jsx
     │   └── utils/
-    │       └── embeddings.js       # Client-side Vector Generation
+    │       └── journal.js       # Frontend API Client 🆕
 ```
 
 ---

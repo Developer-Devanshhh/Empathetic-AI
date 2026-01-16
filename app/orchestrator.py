@@ -9,7 +9,7 @@ from app.utils.chroma_client import query_similar, get_recent_entries
 
 # Configure Gemini
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-MODEL_NAME = "models/gemini-2.5-flash-preview-05-20"
+MODEL_NAME = "models/gemini-2.5-flash"
 
 class Orchestrator:
     def __init__(self):

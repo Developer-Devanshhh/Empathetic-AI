@@ -5,7 +5,7 @@ import google.generativeai as genai
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # ✅ Use a stable model name
-MODEL_NAME = "models/gemini-2.5-flash-preview-05-20"
+MODEL_NAME = "models/gemini-2.5-flash"
 
 def generate_empathetic_reply(emotion: str, context: str, user_entry: str, distortions: list = None) -> str:
     """Generate a warm, empathetic reflection using Gemini."""

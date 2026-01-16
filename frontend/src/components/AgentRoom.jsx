@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Shield, Users } from "lucide-react";
 
-// Helper to render Markdown-like text safely
 const MessageBubble = ({ sender, text, color, isUser }) => (
     <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -10,13 +9,13 @@ const MessageBubble = ({ sender, text, color, isUser }) => (
         className={`flex w-full mb-4 ${isUser ? "justify-end" : "justify-start"}`}
     >
         <div
-            className={`max-w-[70%] p-4 rounded-2xl shadow-sm ${isUser
-                    ? "bg-indigo-600 text-white rounded-br-none"
-                    : `bg-white border-l-4 border-${color}-500 text-gray-800 rounded-bl-none`
+            className={`max-w-[70%] p-4 rounded-2xl shadow-sm transition-colors duration-300 ${isUser
+                    ? "bg-primary text-primary-foreground rounded-br-none"
+                    : `bg-card border-l-4 border-${color}-500 text-card-foreground rounded-bl-none`
                 }`}
         >
             {!isUser && (
-                <p className={`text-xs font-bold text-${color}-600 mb-1 uppercase`}>
+                <p className={`text-xs font-bold text-${color}-600 dark:text-${color}-400 mb-1 uppercase`}>
                     {sender}
                 </p>
             )}
@@ -32,19 +31,31 @@ export default function AgentRoom({ token }) {
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [roomId] = useState("default-room"); // Simple single room for MVP
 
-    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:8000") + "/api";
 
     // Load Personas on Mount
     useEffect(() => {
         fetch(`${API_BASE}/personas`)
-            .then((res) => res.json())
-            .then((data) => {
-                setPersonas(data);
-                // Default select all
-                setSelectedAgents(data.map(p => p.id));
+            .then((res) => {
+                if (!res.ok) throw new Error("Failed to load personas");
+                return res.json();
             })
-            .catch((err) => console.error("Failed to load personas", err));
+            .then((data) => {
+                if (Array.isArray(data)) {
+                    setPersonas(data);
+                    // Default select all
+                    setSelectedAgents(data.map(p => p.id));
+                } else {
+                    console.error("Invalid format for personas", data);
+                    setPersonas([]);
+                }
+            })
+            .catch((err) => {
+                console.error("Failed to load personas", err);
+                setPersonas([]);
+            });
     }, []);
 
     const toggleAgent = (id) => {
@@ -64,15 +75,14 @@ export default function AgentRoom({ token }) {
         setError(null);
 
         try {
-            const res = await fetch(`${API_BASE}/rooms/message`, {
+            const res = await fetch(`${API_BASE}/rooms/${roomId}/message`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    text: userMsg.text,
-                    active_agents: selectedAgents
+                    text: userMsg.text
                 })
             });
 
@@ -98,6 +108,7 @@ export default function AgentRoom({ token }) {
             }
 
         } catch (err) {
+            console.error("Error sending message:", err);
             setError("Failed to get responses. Please try again.");
         } finally {
             setLoading(false);
@@ -105,11 +116,11 @@ export default function AgentRoom({ token }) {
     };
 
     return (
-        <div className="flex flex-col md:flex-row h-[85vh] bg-gray-50 rounded-2xl overflow-hidden border border-gray-200 shadow-xl">
+        <div className="flex flex-col md:flex-row h-[85vh] bg-background rounded-2xl overflow-hidden border border-border shadow-xl transition-colors duration-300">
 
             {/* 🎭 SIDEBAR: PERSONA TOGGLES */}
-            <div className="w-full md:w-64 bg-white p-6 border-r flex flex-col">
-                <div className="flex items-center space-x-2 mb-6 text-gray-700">
+            <div className="w-full md:w-64 bg-card p-6 border-r border-border flex flex-col transition-colors duration-300">
+                <div className="flex items-center space-x-2 mb-6 text-foreground">
                     <Users size={20} />
                     <h3 className="font-bold">Active Companions</h3>
                 </div>
@@ -120,30 +131,30 @@ export default function AgentRoom({ token }) {
                             key={p.id}
                             onClick={() => toggleAgent(p.id)}
                             className={`p-3 rounded-xl cursor-pointer transition border-2 ${selectedAgents.includes(p.id)
-                                    ? `border-${p.color}-400 bg-${p.color}-50`
-                                    : "border-transparent hover:bg-gray-100"
+                                ? `border-${p.color}-400 bg-${p.color}-50 dark:bg-${p.color}-900/20`
+                                : "border-transparent hover:bg-muted"
                                 }`}
                         >
                             <div className="flex items-center justify-between">
-                                <span className={`font-semibold text-${p.color}-700`}>{p.name}</span>
+                                <span className={`font-semibold text-${p.color}-700 dark:text-${p.color}-400`}>{p.name}</span>
                                 {selectedAgents.includes(p.id) && <span className="text-green-500 text-xs">●</span>}
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">{p.role}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{p.role}</p>
                         </div>
                     ))}
                 </div>
 
-                <div className="pt-4 border-t mt-4 text-xs text-gray-400">
+                <div className="pt-4 border-t border-border mt-4 text-xs text-muted-foreground">
                     <p className="flex items-center"><Shield size={12} className="mr-1" /> Privately Secured</p>
                 </div>
             </div>
 
             {/* 💬 MAIN CHAT AREA */}
-            <div className="flex-1 flex flex-col bg-[#F3F4F6]">
+            <div className="flex-1 flex flex-col bg-background transition-colors duration-300">
                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
                     <AnimatePresence>
                         {messages.length === 0 && (
-                            <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-50">
+                            <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
                                 <Users size={48} className="mb-4" />
                                 <p>Select companions and start a safe space discussion.</p>
                             </div>
@@ -159,16 +170,16 @@ export default function AgentRoom({ token }) {
                         ))}
                         {loading && (
                             <div className="flex space-x-2 p-4">
-                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100" />
-                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200" />
+                                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
+                                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-100" />
+                                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-200" />
                             </div>
                         )}
                     </AnimatePresence>
                 </div>
 
                 {/* ⌨️ INPUT AREA */}
-                <div className="p-4 bg-white border-t">
+                <div className="p-4 bg-card border-t border-border transition-colors duration-300">
                     <div className="max-w-4xl mx-auto flex space-x-4">
                         <input
                             type="text"
@@ -176,18 +187,18 @@ export default function AgentRoom({ token }) {
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && handleSend()}
                             placeholder="Share your thoughts..."
-                            className="flex-1 p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="flex-1 p-3 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-colors duration-300"
                             disabled={loading}
                         />
                         <button
                             onClick={handleSend}
                             disabled={loading || !input.trim() || selectedAgents.length === 0}
-                            className="px-6 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:bg-gray-300 transition font-medium"
+                            className="px-6 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground transition font-medium"
                         >
                             Send
                         </button>
                     </div>
-                    {error && <p className="text-center text-red-500 text-sm mt-2">{error}</p>}
+                    {error && <p className="text-center text-destructive text-sm mt-2">{error}</p>}
                 </div>
             </div>
         </div>
